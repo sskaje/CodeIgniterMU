@@ -1,0 +1,1 @@
+../../shared/config/foreign_chars.php

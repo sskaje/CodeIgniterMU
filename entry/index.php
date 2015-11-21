@@ -36,6 +36,53 @@
  * @filesource
  */
 
+
+/**
+ * CodeIgniter MUltiple Site
+ *
+ * A multiple-site solution for CodeIgniter
+ *
+ * This content is released under the MIT License (MIT)
+ *
+ * Copyright (c) 2015 - , sskaje
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * @package	CodeIgniterMU
+ * @author	sskaje
+ * @copyright	Copyright (c) 2015 - , sskaje (http://sskaje.me/)
+ * @license	http://opensource.org/licenses/MIT	MIT License
+ * @link	http://codeigniter.com
+ * @since	Version 1.0.0
+ * @filesource
+ */
+
+# PHP 5.6+ required
+version_compare(PHP_VERSION, '5.6', '>=') or die('PHP 5.6+ only');
+
+# INT64 REQUIRED!
+if (PHP_INT_SIZE < 8) {
+	die('64-bit PHP only.');
+}
+
+define('CI_ROOT', __DIR__ . '/..');
+
 /*
  *---------------------------------------------------------------
  * APPLICATION ENVIRONMENT
@@ -53,7 +100,7 @@
  *
  * NOTE: If you change these, also change the error_reporting() code below
  */
-	define('ENVIRONMENT', isset($_SERVER['CI_ENV']) ? $_SERVER['CI_ENV'] : 'development');
+define('ENVIRONMENT', isset($_SERVER['CI_ENV']) ? $_SERVER['CI_ENV'] : 'development');
 
 /*
  *---------------------------------------------------------------
@@ -73,14 +120,7 @@ switch (ENVIRONMENT)
 	case 'testing':
 	case 'production':
 		ini_set('display_errors', 0);
-		if (version_compare(PHP_VERSION, '5.3', '>='))
-		{
-			error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_STRICT & ~E_USER_NOTICE & ~E_USER_DEPRECATED);
-		}
-		else
-		{
-			error_reporting(E_ALL & ~E_NOTICE & ~E_STRICT & ~E_USER_NOTICE);
-		}
+		error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_STRICT & ~E_USER_NOTICE & ~E_USER_DEPRECATED);
 	break;
 
 	default:
@@ -98,7 +138,7 @@ switch (ENVIRONMENT)
  * Include the path if the folder is not in the same directory
  * as this file.
  */
-	$system_path = '../CodeIgniter';
+$system_path = CI_ROOT . '/CodeIgniter';
 
 /*
  *---------------------------------------------------------------
@@ -113,8 +153,17 @@ switch (ENVIRONMENT)
  *
  * NO TRAILING SLASH!
  */
-$application_folder = '../apps/';
+$application_folder = CI_ROOT . '/apps/';
 
+
+/*
+ *---------------------------------------------------------------
+ * Host Mapping
+ *---------------------------------------------------------------
+ *
+ * Map request HTTP_HOST to /apps/FOLDER_NAME/
+ *
+ */
 $host_mapping = include(__DIR__ . '/host_mapping.php');
 if (!isset($host_mapping[ENVIRONMENT])) {
 	die("Invalid Host Mapping Configuration\n");
@@ -131,39 +180,59 @@ if (!preg_match('#^([a-z0-9\-]+\.)*[a-z0-9\-]+$#', $_SERVER['HTTP_HOST'])) {
 
 $hostname = $_SERVER['HTTP_HOST'];
 
-unset($_SERVER['AUTO_SITE']);
+unset($_SERVER['CI_SITE']);
 
-# 生产环境完整匹配,其他环境模糊匹配
-if (ENVIRONMENT === 'production') {
-	if (isset($host_mapping[$hostname])) {
-		$_SERVER['AUTO_SITE'] = $host_mapping[$hostname];
+# Use CI_SITE to avoid setting base_url in all config.php
+if (ENVIRONMENT === 'production')
+{
+	# Production mode, directly match
+	if (isset($host_mapping[$hostname]))
+	{
+		$_SERVER['CI_SITE'] = $host_mapping[$hostname];
 	}
-} else {
+	else
+	{
+		header('Location: ' . $host_mapping['default']);
+		exit;
+	}
+}
+else
+{
+	# Non-production mode, match by fnmatch()
 	if (isset($host_mapping[$hostname])) {
-		$_SERVER['AUTO_SITE'] = $host_mapping[$hostname];
-	} else {
-		foreach ($host_mapping as $hm=>$site) {
-			if (fnmatch($hm, $hostname)) {
-				$_SERVER['AUTO_SITE'] = $site;
+		$_SERVER['CI_SITE'] = $host_mapping[$hostname];
+	}
+	else
+	{
+		foreach ($host_mapping as $hm=>$site)
+		{
+			if (fnmatch($hm, $hostname))
+			{
+				$_SERVER['CI_SITE'] = $site;
 				break;
 			}
 		}
 	}
-}
 
-if (empty($_SERVER['AUTO_SITE'])) {
-	if (ENVIRONMENT === 'production') {
-		header('Location: ' . $host_mapping['default']);
-		exit;
-	} else {
-		$_SERVER['AUTO_SITE'] = $host_mapping['default'];
+	if (empty($_SERVER['CI_SITE']))
+	{
+		$_SERVER['CI_SITE'] = $host_mapping['default'];
 	}
 }
 
-$application_folder .= $_SERVER['AUTO_SITE'];
-$_SERVER['AUTO_SITE_SHORT'] = current(explode('.', $_SERVER['AUTO_SITE']));
+$application_folder .= $_SERVER['CI_SITE'];
 
-define('CI_HTTP_HOST', $hostname ? : $_SERVER['AUTO_SITE']);
+define('CI_HTTP_HOST', $hostname ? : $_SERVER['CI_SITE']);
+
+
+/*
+ *---------------------------------------------------------------
+ * Unique Instance ID
+ *---------------------------------------------------------------
+ *
+ */
+define('CI_INSTANCE_ID', uniqid('CI', true));
+
 
 /*
  *---------------------------------------------------------------
@@ -178,18 +247,8 @@ define('CI_HTTP_HOST', $hostname ? : $_SERVER['AUTO_SITE']);
  *
  * NO TRAILING SLASH!
  */
-	$view_folder = '';
+$view_folder = '';
 
-	# 资源目录，存放字体等资源
-	$resource_folder = __DIR__ . '/../resource';
-	define('RSCPATH', realpath($resource_folder));
-
-	# 数据目录
-	$data_folder = __DIR__ . '/../data';
-	define('DATAPATH', realpath($data_folder));
-
-	# 文件缓存目录
-	define('CACHEPATH', DATAPATH . '/cache');
 /*
  * --------------------------------------------------------------------
  * DEFAULT CONTROLLER
@@ -248,106 +307,110 @@ define('CI_HTTP_HOST', $hostname ? : $_SERVER['AUTO_SITE']);
  * ---------------------------------------------------------------
  */
 
-	// Set the current directory correctly for CLI requests
-	if (defined('STDIN'))
-	{
-		chdir(dirname(__FILE__));
-	}
+// Set the current directory correctly for CLI requests
+if (defined('STDIN'))
+{
+	chdir(dirname(__FILE__));
+}
 
-	if (($_temp = realpath($system_path)) !== FALSE)
-	{
-		$system_path = $_temp.'/';
-	}
-	else
-	{
-		// Ensure there's a trailing slash
-		$system_path = rtrim($system_path, '/').'/';
-	}
+if (($_temp = realpath($system_path)) !== FALSE)
+{
+	$system_path = $_temp.'/';
+}
+else
+{
+	// Ensure there's a trailing slash
+	$system_path = rtrim($system_path, '/').'/';
+}
 
-	// Is the system path correct?
-	if ( ! is_dir($system_path))
-	{
-		header('HTTP/1.1 503 Service Unavailable.', TRUE, 503);
-		echo 'Your system folder path does not appear to be set correctly. Please open the following file and correct this: '.pathinfo(__FILE__, PATHINFO_BASENAME);
-		exit(3); // EXIT_CONFIG
-	}
+// Is the system path correct?
+if ( ! is_dir($system_path))
+{
+	header('HTTP/1.1 503 Service Unavailable.', TRUE, 503);
+	echo 'Your system folder path does not appear to be set correctly. Please open the following file and correct this: '.pathinfo(__FILE__, PATHINFO_BASENAME);
+	exit(3); // EXIT_CONFIG
+}
 
 /*
  * -------------------------------------------------------------------
  *  Now that we know the path, set the main path constants
  * -------------------------------------------------------------------
  */
-	// The name of THIS file
-	define('SELF', pathinfo(__FILE__, PATHINFO_BASENAME));
+// The name of THIS file
+define('SELF', pathinfo(__FILE__, PATHINFO_BASENAME));
 
-	// Path to the system folder
-	define('BASEPATH', str_replace('\\', '/', $system_path));
+// Path to the system folder
+define('BASEPATH', str_replace('\\', '/', $system_path));
 
-	// Path to the front controller (this file)
-	define('FCPATH', dirname(__FILE__).'/');
+// Path to the front controller (this file)
+define('FCPATH', dirname(__FILE__).'/');
 
-	// Name of the "system folder"
-	define('SYSDIR', trim(strrchr(trim(BASEPATH, '/'), '/'), '/'));
+// Name of the "system folder"
+define('SYSDIR', trim(strrchr(trim(BASEPATH, '/'), '/'), '/'));
 
-	// The path to the "application" folder
-	if (is_dir($application_folder))
+# Name of the "resource folder"
+$resource_folder = CI_ROOT . '/resource';
+define('RSCPATH', realpath($resource_folder));
+
+# Name of common data folder
+$data_folder = CI_ROOT . '/data';
+define('DATAPATH', realpath($data_folder));
+
+# Name of file cache folder
+define('CACHEPATH', DATAPATH . '/cache');
+
+// The path to the "application" folder
+if (is_dir($application_folder))
+{
+	if (($_temp = realpath($application_folder)) !== FALSE)
 	{
-		if (($_temp = realpath($application_folder)) !== FALSE)
-		{
-			$application_folder = $_temp;
-		}
-
-		define('APPPATH', $application_folder.DIRECTORY_SEPARATOR);
-	}
-	else
-	{
-		if ( ! is_dir(BASEPATH.$application_folder.DIRECTORY_SEPARATOR))
-		{
-			header('HTTP/1.1 503 Service Unavailable.', TRUE, 503);
-			echo 'Your application folder path does not appear to be set correctly. Please open the following file and correct this: '.SELF;
-			exit(3); // EXIT_CONFIG
-		}
-
-		define('APPPATH', BASEPATH.$application_folder.DIRECTORY_SEPARATOR);
+		$application_folder = $_temp;
 	}
 
-	// The path to the "views" folder
-	if (empty($view_folder) || ! is_dir($view_folder))
+	define('APPPATH', $application_folder.DIRECTORY_SEPARATOR);
+}
+else
+{
+	if ( ! is_dir(BASEPATH.$application_folder.DIRECTORY_SEPARATOR))
 	{
-		if ( ! empty($view_folder) && is_dir(APPPATH.$view_folder.DIRECTORY_SEPARATOR))
-		{
-			$view_folder = APPPATH.$view_folder;
-		}
-		elseif ( ! is_dir(APPPATH.'views'.DIRECTORY_SEPARATOR))
-		{
-			header('HTTP/1.1 503 Service Unavailable.', TRUE, 503);
-			echo 'Your view folder path does not appear to be set correctly. Please open the following file and correct this: '.SELF;
-			exit(3); // EXIT_CONFIG
-		}
-		else
-		{
-			$view_folder = APPPATH.'views';
-		}
+		header('HTTP/1.1 503 Service Unavailable.', TRUE, 503);
+		echo 'Your application folder path does not appear to be set correctly. Please open the following file and correct this: '.SELF;
+		exit(3); // EXIT_CONFIG
 	}
 
-	if (($_temp = realpath($view_folder)) !== FALSE)
-	{
-		$view_folder = $_temp.DIRECTORY_SEPARATOR;
-	}
-	else
-	{
-		$view_folder = rtrim($view_folder, '/\\').DIRECTORY_SEPARATOR;
-	}
-
-	define('VIEWPATH', $view_folder);
-
-
-# 64位限制，保证业务安全
-if (PHP_INT_SIZE < 8) {
-    die('64-bit PHP only.');
+	define('APPPATH', BASEPATH.$application_folder.DIRECTORY_SEPARATOR);
 }
 
-define('INSTANCE_ID', uniqid('AUTO', true));
+// The path to the "views" folder
+if (empty($view_folder) || ! is_dir($view_folder))
+{
+	if ( ! empty($view_folder) && is_dir(APPPATH.$view_folder.DIRECTORY_SEPARATOR))
+	{
+		$view_folder = APPPATH.$view_folder;
+	}
+	elseif ( ! is_dir(APPPATH.'views'.DIRECTORY_SEPARATOR))
+	{
+		header('HTTP/1.1 503 Service Unavailable.', TRUE, 503);
+		echo 'Your view folder path does not appear to be set correctly. Please open the following file and correct this: '.SELF;
+		exit(3); // EXIT_CONFIG
+	}
+	else
+	{
+		$view_folder = APPPATH.'views';
+	}
+}
+
+if (($_temp = realpath($view_folder)) !== FALSE)
+{
+	$view_folder = $_temp.DIRECTORY_SEPARATOR;
+}
+else
+{
+	$view_folder = rtrim($view_folder, '/\\').DIRECTORY_SEPARATOR;
+}
+
+define('VIEWPATH', $view_folder);
+
 
 /*
  * --------------------------------------------------------------------
@@ -357,4 +420,6 @@ define('INSTANCE_ID', uniqid('AUTO', true));
  * And away we go...
  */
 
-require_once BASEPATH.'core/CodeIgniter.php';
+require_once CI_ROOT.'/CodeIgniter/system/core/CodeIgniter.php';
+
+# EOF

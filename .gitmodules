@@ -1,3 +1,4 @@
 [submodule "CodeIgniter"]
 	path = CodeIgniter
 	url = git://github.com/bcit-ci/CodeIgniter.git
+

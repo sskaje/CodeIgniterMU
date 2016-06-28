@@ -1,0 +1,4 @@
+[submodule "CodeIgniter"]
+	path = CodeIgniter
+	url = git@github.com:sskaje/CodeIgniter.git
+	branch = master

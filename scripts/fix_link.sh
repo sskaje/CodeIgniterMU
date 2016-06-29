@@ -62,8 +62,8 @@ TARGET_ROOT=$WEBROOT/apps/$1
 
 if [ $SHARED_ROOT = $TARGET_ROOT ];
 then
-    echo -e $'\e[31mError: NO CHANGES MADE ON "shared" \e[0m'
-    exit
+	echo -e $'\e[31mError: NO CHANGES MADE ON "shared" \e[0m'
+	exit
 fi
 
 if [ ! -d $TARGET_ROOT ]; 
@@ -71,7 +71,7 @@ then
 	echo -e $'\e[31mError:\e[0m' $TARGET_ROOT not found!
 	exit
 else
-    echo -e $'\e[33m'Processing $TARGET_ROOT $'\e[0m'
+	echo -e $'\e[33m'Processing $TARGET_ROOT $'\e[0m'
 fi
 
 function relate_path()
@@ -85,40 +85,42 @@ function fix_dir()
 	rF=$(relate_path $F)
 	LT=../shared/$1
 
+	echo -n -e $'\e[35m'$rF$'\e[0m '
+
 	if [ -h $F ];
 	then
 		NLT=$(readlink $F)
 		if [ "$NLT" != "$LT" ];
 		then
-			echo -e $'\e[32m'  $rF $'\e[0m' is linked to $'\e[31m'$NLT$'\e[0m' not $'\e[32m'$LT$'\e[0m'
+			echo -n -e is linked to $'\e[31m'$NLT$'\e[0m' not $'\e[32m'$LT$'\e[0m'
 			unlink $F
 			cd $TARGET_ROOT
 			ln -s $LT $1
-			echo -e $'\e[32m'  $rF $'\e[0m' is linked to $'\e[32m'$LT$'\e[0m'
+			echo -e "\t->\t" $'\e[32m'$LT$'\e[0m'
 		else
-			echo -e $'\e[32m'  $rF $'\e[0m' is linked to $'\e[32m'$LT$'\e[0m'
+			echo -e "\t->\t" $'\e[32m'$LT$'\e[0m'
 		fi;
 
 	elif [ ! -e $F ];
 	then 
 		cd $TARGET_ROOT
 		ln -s $LT $1
-		echo -e $'\e[32m'  $rF $'\e[0m' is now linked to $'\e[31m'../shared/$1$'\e[0m'
+		echo -e "\n\t"Linked to $'\e[32m'../shared/$1$'\e[0m'
 
 	elif [ -d $F ];
 	then
-		echo -e $'\e[31m'  $rF exists and is NOT a symbolic link!$'\e[0m'
-		rsync -rlv $F $SHARED_ROOT
+		echo -n -e $'\e[31m'EXISTS BUT NOT A SYMBOLIC LINK!$'\e[0m '
+		rsync -rlv $F $SHARED_ROOT >/dev/null
 		rm -rf $F
 		cd $TARGET_ROOT
-		ln -s LT $1
-		echo -e $'\e[32m'  $rF $'\e[0m' is now linked to $'\e[31m'../shared/$1$'\e[0m'
+		ln -s $LT $1
+		echo -e "\n\t"Linked to $'\e[32m'../shared/$1$'\e[0m'
 	else 
-		echo -e $'\e[31m'  $rF exists and is a FILE!$'\e[0m'
+		echo -n -e $'\e[31m'EXISTS AND IS A FILE!$'\e[0m '
 		rm -f $F
 		cd $TARGET_ROOT
 		ln -s $LT $1
-		echo -e $'\e[32m'  $rF $'\e[0m' is now linked to $'\e[31m'../shared/$1$'\e[0m'
+		echo -e "\n\t"Linked to $'\e[32m'../shared/$1$'\e[0m'
 	fi
 
 }
@@ -127,52 +129,77 @@ function fix_config()
 {
 	F=$TARGET_ROOT/config/$1
 	rF=$(relate_path $F)
-    LT=../../shared/config/$1
+	LT=../../shared/config/$1
+
+	echo -n -e $'\e[35m'$rF$'\e[0m '
 
 	if [ -h $F ];
 	then
 		NLT=$(readlink $F)
 		if [ "$NLT" != "$LT" ];
 		then
-			echo -e $'\e[32m'  $rF $'\e[0m' is linked to $'\e[31m'$NLT$'\e[0m' not $'\e[32m'$LT$'\e[0m'
+			echo -n -e is linked to $'\e[31m'$NLT$'\e[0m' not $'\e[32m'$LT$'\e[0m'
 			unlink $F
 			cd $TARGET_ROOT/config
 			ln -s $LT $1
-			echo -e $'\e[32m'  $rF $'\e[0m' is linked to $'\e[32m'$LT$'\e[0m'
+			echo -e "\t->\t" $'\e[32m'$LT$'\e[0m'
 		else
-			echo -e $'\e[32m'  $rF $'\e[0m' is linked to $'\e[32m'$LT$'\e[0m'
+			echo -e "\t->\t" $'\e[32m'$LT$'\e[0m'
 		fi;
 	elif [ ! -e $F ];
 	then 
 		cd $TARGET_ROOT/config
 		ln -s $LT $1
-		echo -e $'\e[32m'  $rF $'\e[0m' is now linked to $'\e[31m'../shared/$1$'\e[0m'
+		echo -e "\n\t"Linked to $'\e[32m'../shared/$1$'\e[0m'
 	elif [ -f $F ];
 	then
-		echo -e $'\e[31m'  $rF exists and is NOT a symbolic link!$'\e[0m'
+		echo -n -e $'\e[31m'EXISTS BUT NOT A SYMBOLIC FILE!$'\e[0m '
 		cp $F $SHARED_ROOT/config/
 		rm -f $F
 		cd $TARGET_ROOT/config
 		ln -s $LT $1
-		echo -e $'\e[32m'  $rF $'\e[0m' is now linked to $'\e[31m'../shared/$1$'\e[0m'
+		echo -e "\n\t"Linked to $'\e[32m'../shared/$1$'\e[0m'
 	else 
-		echo -e $'\e[31m'  $rF exists and is a FILE!$'\e[0m'
+		echo -n -e $'\e[31m'EXISTS AND IS A FILE!$'\e[0m '
 		rm -rf $F
 		cd $TARGET_ROOT/config
 		ln -s $LT $1
-		echo -e $'\e[32m'  $rF $'\e[0m' is now linked to $'\e[31m'../shared/$1$'\e[0m'
+		echo -e "\n\t"Linked to $'\e[32m'../shared/$1$'\e[0m'
 	fi
+
 }
 
+echo -e ""
+echo -e $'\e[33m'Processing CI folders $'\e[0m'
+function fix_dir_all() 
+{
+	for i in ${LINK_CI_DIR[@]}; do
+		fix_dir $i;
+	done
+}
 
-for i in ${LINK_CI_DIR[@]}; do
-	fix_dir $i;
-done
+fix_dir_all | column -t -s $'\t'
 
-for i in ${LINK_CI_CONFIG[@]}; do
-	fix_config $i;
-done
+echo -e ""
+echo -e $'\e[33m'Processing CI configs $'\e[0m'
+function fix_config_ci()
+{
+	for i in ${LINK_CI_CONFIG[@]}; do
+		fix_config $i;
+	done
+}
 
-for i in ${LINK_DATA_CONFIG[@]}; do
-	fix_config $i;
-done
+fix_config_ci | column -t -s $'\t'
+
+echo -e ""
+echo -e $'\e[33m'Processing Custom configs $'\e[0m'
+function fix_config_custom()
+{
+	for i in ${LINK_DATA_CONFIG[@]}; do
+		fix_config $i;
+	done
+}
+
+fix_config_custom | column -t -s $'\t'
+
+
